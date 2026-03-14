@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Administración — Ticket App</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- html5-qrcode (for scanner page) -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Alpine.js (deferred) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- App scripts (consolidated) -->
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</head>
+<body>
+
+<!-- ============================================================
+     ROOT APP
+     ============================================================ -->
+<div x-data="app" x-cloak>
+
+  <!-- Loading while auth initializes -->
+  <template x-if="!ready">
+    <div class="loading-screen">
+      <div class="spinner"></div>
+      Cargando...
+    </div>
+  </template>
+
+  <template x-if="ready">
+    <div>
+
+      <!-- ========== LOGIN PAGE ========== -->
+      <template x-if="isRoute('login')">
+        <div class="login-wrapper" x-data="loginPage">
+          <div class="login-card">
+            <div class="login-card__title">Ticket App</div>
+            <div class="login-card__subtitle">Panel de administración</div>
+
+            <template x-if="error">
+              <div class="form-error" x-text="error"></div>
+            </template>
+
+            <form @submit.prevent="handleLogin">
+              <div class="form-group">
+                <label for="email">Email</label>
+                <input id="email" type="email" class="form-input" x-model="email"
+                  placeholder="admin@ejemplo.org" required autocomplete="email">
+              </div>
+              <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input id="password" type="password" class="form-input" x-model="password"
+                  placeholder="••••••••" required autocomplete="current-password">
+              </div>
+              <button type="submit" class="btn btn--primary btn--block btn--lg" :disabled="loading">
+                <template x-if="loading"><span class="spinner"></span></template>
+                <span x-text="loading ? 'Iniciando sesión...' : 'Iniciar sesión'"></span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </template>
+
+      <!-- ========== AUTHENTICATED SHELL ========== -->
+      <template x-if="!isRoute('login')">
+        <div class="app-shell">
+
+          <!-- Top Bar -->
+          <header class="topbar">
+            <div class="topbar__brand">
+              <span>■</span> Ticket App
+            </div>
+            <nav class="topbar__nav">
+              <a href="#/events" class="topbar__link"
+                :class="{ 'topbar__link--active': isRoute('events') || isRoute('event-dashboard') }">
+                Eventos
+              </a>
+              <a href="#/scan" class="topbar__link"
+                :class="{ 'topbar__link--active': isRoute('scanner') }">
+                Escáner QR
+              </a>
+            </nav>
+            <div class="topbar__user">
+              <span class="topbar__user-email" x-text="$store.auth.user?.email"></span>
+              <button class="btn btn--ghost btn--sm" @click="$store.auth.logout()">Cerrar sesión</button>
+            </div>
+          </header>
+
+          <!-- Main Content Area -->
+          <main class="main-content">
+
+            <!-- ========== EVENTS LIST ========== -->
+            <template x-if="isRoute('events')">
+              <div x-data="eventsPage">
+                <div class="page-header">
+                  <div>
+                    <h1 class="page-header__title">Eventos</h1>
+                    <p class="page-header__sub">Gestiona tus eventos y entradas</p>
+                  </div>
+                  <button class="btn btn--primary" @click="toggleCreateForm">
+                    <span x-text="showCreateForm ? 'Cancelar' : '+ Nuevo evento'"></span>
+                  </button>
+                </div>
+
+                <!-- Create Event Form -->
+                <template x-if="showCreateForm">
+                  <div class="card mb-4">
+                    <div class="card__header">
+                      <span class="card__title">Crear evento</span>
+                    </div>
+                    <div class="card__body">
+                      <form @submit.prevent="createEvent">
+                        <div class="form-group">
+                          <label>Nombre del evento</label>
+                          <input type="text" class="form-input" x-model="form.name"
+                            placeholder="Gala Solidaria 2026" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Descripción</label>
+                          <textarea class="form-textarea" x-model="form.description"
+                            placeholder="Descripción del evento..."></textarea>
+                        </div>
+                        <div class="form-row">
+                          <div class="form-group">
+                            <label>Lugar</label>
+                            <input type="text" class="form-input" x-model="form.venue"
+                              placeholder="Centro Cultural, Madrid" required>
+                          </div>
+                          <div class="form-group">
+                            <label>URL de imagen</label>
+                            <input type="url" class="form-input" x-model="form.image_url"
+                              placeholder="https://...">
+                          </div>
+                        </div>
+                        <div class="form-row">
+                          <div class="form-group">
+                            <label>Fecha</label>
+                            <input type="date" class="form-input" x-model="form.event_date" required>
+                          </div>
+                          <div class="form-group">
+                            <label>Hora</label>
+                            <input type="time" class="form-input" x-model="form.event_time" required>
+                          </div>
+                        </div>
+                        <div class="form-row">
+                          <div class="form-group">
+                            <label>Duración (minutos)</label>
+                            <input type="number" class="form-input" x-model="form.duration_minutes" min="15">
+                          </div>
+                          <div class="form-group">
+                            <label>Aforo total</label>
+                            <input type="number" class="form-input" x-model="form.total_seats" min="1">
+                          </div>
+                        </div>
+                        <div class="mt-4">
+                          <button type="submit" class="btn btn--primary" :disabled="saving">
+                            <span x-text="saving ? 'Creando...' : 'Crear evento'"></span>
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Loading -->
+                <template x-if="loading">
+                  <div class="empty-state">
+                    <div class="spinner" style="margin:0 auto"></div>
+                    <div class="mt-4">Cargando eventos...</div>
+                  </div>
+                </template>
+
+                <!-- Events Grid -->
+                <template x-if="!loading && events.length > 0">
+                  <div class="event-grid">
+                    <template x-for="event in events" :key="event.id">
+                      <div class="event-card" @click="navigateToEvent(event.id)">
+                        <div class="event-card__name" x-text="event.name"></div>
+                        <div class="event-card__venue" x-text="event.venue"></div>
+                        <div class="event-card__date" x-text="formatDate(event.event_date)"></div>
+                        <div class="event-card__footer">
+                          <span class="event-card__seats">
+                            <span x-text="event.available_seats"></span> /
+                            <span x-text="event.total_seats"></span> plazas
+                          </span>
+                          <span class="badge" :class="eventStatus(event).class"
+                            x-text="eventStatus(event).label"></span>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
+                <!-- Empty state -->
+                <template x-if="!loading && events.length === 0">
+                  <div class="empty-state">
+                    <div class="empty-state__icon">📋</div>
+                    <div class="empty-state__text">No hay eventos. Crea el primero.</div>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- ========== EVENT DASHBOARD ========== -->
+            <template x-if="isRoute('event-dashboard')">
+              <div x-data="eventDashboard">
+                <template x-if="loading">
+                  <div class="empty-state">
+                    <div class="spinner" style="margin:0 auto"></div>
+                    <div class="mt-4">Cargando...</div>
+                  </div>
+                </template>
+
+                <template x-if="!loading && event">
+                  <div>
+                    <!-- Breadcrumb -->
+                    <div class="breadcrumb">
+                      <a href="#/events">Eventos</a>
+                      <span class="breadcrumb__sep">›</span>
+                      <span x-text="event.name"></span>
+                    </div>
+
+                    <!-- Header -->
+                    <div class="page-header">
+                      <div>
+                        <h1 class="page-header__title" x-text="event.name"></h1>
+                        <p class="page-header__sub">
+                          <span x-text="event.venue"></span> · <span x-text="formatDate(event.event_date)"></span>
+                        </p>
+                      </div>
+                      <div class="flex gap-2">
+                        <button class="btn btn--secondary" @click="navigateToOrders">Pedidos</button>
+                        <button class="btn btn--success" @click="navigateToScan">Escáner QR</button>
+                        <button class="btn btn--ghost" @click="openEditEvent">Editar</button>
+                      </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="stats-grid">
+                      <div class="stat-card">
+                        <div class="stat-card__label">Entradas vendidas</div>
+                        <div class="stat-card__value" x-text="stats.totalSold"></div>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-card__label">Ingresos</div>
+                        <div class="stat-card__value stat-card__value--success"
+                          x-text="formatCents(stats.totalRevenue)"></div>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-card__label">Donaciones</div>
+                        <div class="stat-card__value stat-card__value--primary"
+                          x-text="formatCents(stats.donations)"></div>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-card__label">Escaneadas</div>
+                        <div class="stat-card__value">
+                          <span x-text="stats.scanned"></span>
+                          <span style="font-size:0.85rem;color:var(--color-text-muted)">
+                            / <span x-text="stats.scanned + stats.unscanned"></span>
+                          </span>
+                        </div>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-card__label">Plazas disponibles</div>
+                        <div class="stat-card__value">
+                          <span x-text="event.available_seats"></span>
+                          <span style="font-size:0.85rem;color:var(--color-text-muted)">
+                            / <span x-text="event.total_seats"></span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Breakdown by type -->
+                    <template x-if="typeBreakdown.length > 0">
+                      <div class="card mb-4">
+                        <div class="card__header">
+                          <span class="card__title">Ventas por tipo</span>
+                        </div>
+                        <div class="card__body card__body--flush">
+                          <div class="table-wrap">
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Tipo</th>
+                                  <th class="text-right">Vendidos</th>
+                                  <th class="text-right">Ingresos</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <template x-for="b in typeBreakdown" :key="b.name">
+                                  <tr>
+                                    <td>
+                                      <span x-text="b.name"></span>
+                                      <template x-if="b.isDonation">
+                                        <span class="badge badge--info" style="margin-left:6px">Donación</span>
+                                      </template>
+                                    </td>
+                                    <td class="text-right" x-text="b.quantity"></td>
+                                    <td class="text-right" x-text="formatCents(b.revenue)"></td>
+                                  </tr>
+                                </template>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- Ticket Types -->
+                    <div class="card">
+                      <div class="card__header">
+                        <span class="card__title">Tipos de entrada</span>
+                        <button class="btn btn--primary btn--sm" @click="openAddType">+ Añadir</button>
+                      </div>
+                      <div class="card__body">
+                        <template x-if="ticketTypes.length === 0">
+                          <div class="empty-state">
+                            <div class="empty-state__text">No hay tipos de entrada. Añade el primero.</div>
+                          </div>
+                        </template>
+
+                        <div class="type-list">
+                          <template x-for="tt in ticketTypes" :key="tt.id">
+                            <div class="type-item">
+                              <div class="type-item__info">
+                                <div class="type-item__name">
+                                  <span x-text="tt.name"></span>
+                                  <template x-if="!tt.enabled">
+                                    <span class="badge badge--muted" style="margin-left:6px">Desactivado</span>
+                                  </template>
+                                </div>
+                                <div class="type-item__meta">
+                                  <span x-text="tt.type"></span> ·
+                                  <span x-text="formatCents(tt.price_cents)"></span>
+                                  <template x-if="tt.type === 'group'">
+                                    <span> (<span x-text="tt.quantity"></span> entradas)</span>
+                                  </template>
+                                  <template x-if="!tt.takes_seat">
+                                    <span> · Sin asiento</span>
+                                  </template>
+                                </div>
+                              </div>
+                              <div class="type-item__actions">
+                                <button class="btn btn--ghost btn--sm"
+                                  @click="toggleTicketType(tt.id, tt.enabled)"
+                                  x-text="tt.enabled ? 'Desactivar' : 'Activar'"></button>
+                                <button class="btn btn--ghost btn--sm" style="color:var(--color-danger)"
+                                  @click="deleteTicketType(tt.id)">Eliminar</button>
+                              </div>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Edit Event Modal -->
+                    <template x-if="showEditEvent">
+                      <div class="modal-backdrop" @click.self="showEditEvent = false">
+                        <div class="modal">
+                          <div class="modal__header">
+                            <span class="modal__title">Editar evento</span>
+                            <button class="btn btn--ghost btn--sm" @click="showEditEvent = false">✕</button>
+                          </div>
+                          <div class="modal__body">
+                            <div class="form-group">
+                              <label>Nombre</label>
+                              <input type="text" class="form-input" x-model="editForm.name">
+                            </div>
+                            <div class="form-group">
+                              <label>Descripción</label>
+                              <textarea class="form-textarea" x-model="editForm.description"></textarea>
+                            </div>
+                            <div class="form-row">
+                              <div class="form-group">
+                                <label>Lugar</label>
+                                <input type="text" class="form-input" x-model="editForm.venue">
+                              </div>
+                              <div class="form-group">
+                                <label>Aforo total</label>
+                                <input type="number" class="form-input" x-model="editForm.total_seats">
+                              </div>
+                            </div>
+                            <div class="form-row">
+                              <div class="form-group">
+                                <label>Fecha y hora</label>
+                                <input type="datetime-local" class="form-input" x-model="editForm.event_date">
+                              </div>
+                              <div class="form-group">
+                                <label>Duración (min)</label>
+                                <input type="number" class="form-input" x-model="editForm.duration_minutes">
+                              </div>
+                            </div>
+                            <div class="form-row">
+                              <div class="form-group">
+                                <label>Apertura puertas</label>
+                                <input type="datetime-local" class="form-input" x-model="editForm.open_time">
+                              </div>
+                              <div class="form-group">
+                                <label>Cierre de ventas</label>
+                                <input type="datetime-local" class="form-input" x-model="editForm.sales_cutoff">
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>URL de imagen</label>
+                              <input type="url" class="form-input" x-model="editForm.image_url">
+                            </div>
+                          </div>
+                          <div class="modal__footer">
+                            <button class="btn btn--secondary" @click="showEditEvent = false">Cancelar</button>
+                            <button class="btn btn--primary" @click="saveEvent" :disabled="savingEvent">
+                              <span x-text="savingEvent ? 'Guardando...' : 'Guardar'"></span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- Add Ticket Type Modal -->
+                    <template x-if="showAddType">
+                      <div class="modal-backdrop" @click.self="showAddType = false">
+                        <div class="modal">
+                          <div class="modal__header">
+                            <span class="modal__title">Añadir tipo de entrada</span>
+                            <button class="btn btn--ghost btn--sm" @click="showAddType = false">✕</button>
+                          </div>
+                          <div class="modal__body">
+                            <div class="form-group">
+                              <label>Nombre</label>
+                              <input type="text" class="form-input" x-model="typeForm.name"
+                                placeholder="Entrada General">
+                            </div>
+                            <div class="form-row">
+                              <div class="form-group">
+                                <label>Tipo</label>
+                                <select class="form-select" x-model="typeForm.type" @change="onTypeChange">
+                                  <option value="general">General</option>
+                                  <option value="group">Grupo</option>
+                                  <option value="donation">Donación</option>
+                                  <option value="donation_custom">Donación libre (v2)</option>
+                                </select>
+                              </div>
+                              <div class="form-group">
+                                <label x-text="typeForm.type === 'group' ? 'Precio total del pack (€)' : 'Precio (€)'"></label>
+                                <input type="number" class="form-input" x-model="typeForm.price"
+                                  step="0.01" min="0.01" placeholder="10.00">
+                              </div>
+                            </div>
+                            <template x-if="typeForm.type === 'group'">
+                              <div class="form-group">
+                                <label>Entradas en el pack</label>
+                                <input type="number" class="form-input" x-model="typeForm.quantity" min="2">
+                              </div>
+                            </template>
+                            <div class="form-row">
+                              <div class="form-group">
+                                <label class="form-check">
+                                  <input type="checkbox" x-model="typeForm.takes_seat"
+                                    :disabled="typeForm.type === 'donation' || typeForm.type === 'donation_custom'">
+                                  Ocupa asiento
+                                </label>
+                              </div>
+                              <div class="form-group">
+                                <label class="form-check">
+                                  <input type="checkbox" x-model="typeForm.enabled">
+                                  Activo
+                                </label>
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>Texto legal</label>
+                              <textarea class="form-textarea" x-model="typeForm.legal_text"
+                                placeholder="Condiciones legales..."></textarea>
+                            </div>
+                            <div class="form-group">
+                              <label>Información fiscal</label>
+                              <textarea class="form-textarea" x-model="typeForm.fiscal_text"
+                                placeholder="Nombre de la entidad, dirección, CIF..."></textarea>
+                            </div>
+                          </div>
+                          <div class="modal__footer">
+                            <button class="btn btn--secondary" @click="showAddType = false">Cancelar</button>
+                            <button class="btn btn--primary" @click="saveTicketType" :disabled="savingType">
+                              <span x-text="savingType ? 'Guardando...' : 'Añadir'"></span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- ========== ORDERS LIST ========== -->
+            <template x-if="isRoute('orders')">
+              <div x-data="ordersPage">
+                <template x-if="loading">
+                  <div class="empty-state">
+                    <div class="spinner" style="margin:0 auto"></div>
+                    <div class="mt-4">Cargando...</div>
+                  </div>
+                </template>
+
+                <template x-if="!loading">
+                  <div>
+                    <div class="breadcrumb">
+                      <a href="#/events">Eventos</a>
+                      <span class="breadcrumb__sep">›</span>
+                      <a :href="'#/events/' + eventId" x-text="event?.name || 'Evento'"></a>
+                      <span class="breadcrumb__sep">›</span>
+                      <span>Pedidos</span>
+                    </div>
+
+                    <div class="page-header">
+                      <div>
+                        <h1 class="page-header__title">Pedidos</h1>
+                        <p class="page-header__sub" x-text="orders.length + ' pedido(s)'"></p>
+                      </div>
+                      <button class="btn btn--secondary" @click="navigateBack">← Volver al evento</button>
+                    </div>
+
+                    <!-- Email status filter -->
+                    <div class="filter-tabs">
+                      <button class="filter-tab" :class="{ 'filter-tab--active': filter === 'all' }"
+                        @click="filter = 'all'">
+                        Todos <span x-text="'(' + emailCounts.all + ')'"></span>
+                      </button>
+                      <button class="filter-tab" :class="{ 'filter-tab--active': filter === 'sent' }"
+                        @click="filter = 'sent'">
+                        Enviados <span x-text="'(' + emailCounts.sent + ')'"></span>
+                      </button>
+                      <button class="filter-tab" :class="{ 'filter-tab--active': filter === 'failed' }"
+                        @click="filter = 'failed'">
+                        Error <span x-text="'(' + emailCounts.failed + ')'"></span>
+                      </button>
+                      <button class="filter-tab" :class="{ 'filter-tab--active': filter === 'pending' }"
+                        @click="filter = 'pending'">
+                        Pendientes <span x-text="'(' + emailCounts.pending + ')'"></span>
+                      </button>
+                    </div>
+
+                    <template x-if="filteredOrders.length === 0">
+                      <div class="empty-state">
+                        <div class="empty-state__text">No hay pedidos con este filtro.</div>
+                      </div>
+                    </template>
+
+                    <template x-if="filteredOrders.length > 0">
+                      <div class="card">
+                        <div class="card__body card__body--flush">
+                          <div class="table-wrap">
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Fecha</th>
+                                  <th>Comprador</th>
+                                  <th>Email</th>
+                                  <th class="text-right">Total</th>
+                                  <th>Email status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <template x-for="order in filteredOrders" :key="order.id">
+                                  <tr class="clickable" @click="navigateToOrder(order.id)">
+                                    <td x-text="formatDate(order.created_at)"></td>
+                                    <td x-text="order.buyer_name"></td>
+                                    <td x-text="order.buyer_email"></td>
+                                    <td class="text-right" x-text="formatCents(order.total_cents)"></td>
+                                    <td>
+                                      <span class="badge" :class="emailStatusClass(order.email_status)"
+                                        x-text="emailStatusLabel(order.email_status)"></span>
+                                    </td>
+                                  </tr>
+                                </template>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- ========== ORDER DETAIL ========== -->
+            <template x-if="isRoute('order-detail')">
+              <div x-data="orderDetailPage">
+                <template x-if="loading">
+                  <div class="empty-state">
+                    <div class="spinner" style="margin:0 auto"></div>
+                    <div class="mt-4">Cargando...</div>
+                  </div>
+                </template>
+
+                <template x-if="!loading && order">
+                  <div>
+                    <div class="breadcrumb">
+                      <a href="#/events">Eventos</a>
+                      <span class="breadcrumb__sep">›</span>
+                      <a :href="'#/events/' + eventId" x-text="event?.name || 'Evento'"></a>
+                      <span class="breadcrumb__sep">›</span>
+                      <a :href="'#/events/' + eventId + '/orders'">Pedidos</a>
+                      <span class="breadcrumb__sep">›</span>
+                      <span>Detalle</span>
+                    </div>
+
+                    <div class="page-header">
+                      <div>
+                        <h1 class="page-header__title">Pedido</h1>
+                        <p class="page-header__sub text-mono" x-text="order.id"></p>
+                      </div>
+                      <div class="flex gap-2">
+                        <button class="btn btn--primary" @click="resendTickets" :disabled="resending">
+                          <span x-text="resending ? 'Reenviando...' : '📧 Reenviar entradas'"></span>
+                        </button>
+                        <button class="btn btn--secondary" @click="navigateBack">← Volver</button>
+                      </div>
+                    </div>
+
+                    <!-- Order Info -->
+                    <div class="card mb-4">
+                      <div class="card__header">
+                        <span class="card__title">Información del comprador</span>
+                        <span class="badge" :class="emailStatusClass(order.email_status)"
+                          x-text="'Email: ' + emailStatusLabel(order.email_status)"></span>
+                      </div>
+                      <div class="card__body">
+                        <dl class="detail-grid">
+                          <dt>Nombre</dt>
+                          <dd x-text="order.buyer_name"></dd>
+                          <dt>Email</dt>
+                          <dd x-text="order.buyer_email"></dd>
+                          <dt>DNI/NIF</dt>
+                          <dd x-text="order.buyer_national_id || '—'"></dd>
+                          <dt>Total</dt>
+                          <dd><strong x-text="formatCents(order.total_cents)"></strong></dd>
+                          <dt>Stripe ID</dt>
+                          <dd class="text-mono" x-text="order.stripe_payment_id"></dd>
+                          <dt>Fecha compra</dt>
+                          <dd x-text="formatDate(order.created_at)"></dd>
+                          <dt>Email enviado</dt>
+                          <dd x-text="formatDate(order.email_sent_at)"></dd>
+                        </dl>
+                      </div>
+                    </div>
+
+                    <!-- Order Items -->
+                    <div class="card mb-4">
+                      <div class="card__header">
+                        <span class="card__title">Líneas del pedido</span>
+                      </div>
+                      <div class="card__body card__body--flush">
+                        <div class="table-wrap">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Tipo</th>
+                                <th class="text-right">Cantidad</th>
+                                <th class="text-right">Precio Ud.</th>
+                                <th class="text-right">Subtotal</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <template x-for="item in orderItems" :key="item.id">
+                                <tr>
+                                  <td>
+                                    <span x-text="item.ticket_types?.name || '—'"></span>
+                                    <template x-if="item.ticket_types?.type === 'donation'">
+                                      <span class="badge badge--info" style="margin-left:6px">Donación</span>
+                                    </template>
+                                  </td>
+                                  <td class="text-right" x-text="item.quantity"></td>
+                                  <td class="text-right" x-text="formatCents(item.unit_price_cents)"></td>
+                                  <td class="text-right" x-text="formatCents(item.subtotal_cents)"></td>
+                                </tr>
+                              </template>
+                            </tbody>
+                            <tfoot>
+                              <tr>
+                                <td colspan="3" class="text-right"><strong>Total</strong></td>
+                                <td class="text-right"><strong x-text="formatCents(order.total_cents)"></strong></td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Tickets -->
+                    <template x-if="tickets.length > 0">
+                      <div class="card">
+                        <div class="card__header">
+                          <span class="card__title">Entradas (<span x-text="tickets.length"></span>)</span>
+                        </div>
+                        <div class="card__body card__body--flush">
+                          <div class="table-wrap">
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Código</th>
+                                  <th>Estado</th>
+                                  <th>Escaneado el</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <template x-for="ticket in tickets" :key="ticket.id">
+                                  <tr>
+                                    <td class="text-mono" x-text="ticket.ticket_token.split(':')[0].substring(0, 12) + '...'"></td>
+                                    <td>
+                                      <span class="badge" :class="ticketStatusClass(ticket)"
+                                        x-text="ticketStatusLabel(ticket)"></span>
+                                    </td>
+                                    <td x-text="ticket.scanned_at ? formatDate(ticket.scanned_at) : '—'"></td>
+                                  </tr>
+                                </template>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- ========== QR SCANNER ========== -->
+            <template x-if="isRoute('scanner')">
+              <div x-data="scannerPage" @destroy="destroy">
+                <div class="page-header">
+                  <div>
+                    <h1 class="page-header__title">Escáner QR</h1>
+                    <p class="page-header__sub">Valida entradas en el evento</p>
+                  </div>
+                </div>
+
+                <div class="scanner-container">
+                  <!-- Event selector -->
+                  <div class="form-group">
+                    <label>Seleccionar evento</label>
+                    <select class="form-select" x-model="selectedEventId" @change="onEventSelect">
+                      <option value="">— Selecciona un evento —</option>
+                      <template x-for="ev in events" :key="ev.id">
+                        <option :value="ev.id" x-text="ev.name"></option>
+                      </template>
+                    </select>
+                  </div>
+
+                  <!-- Scan stats -->
+                  <template x-if="selectedEventId && total > 0">
+                    <div class="scan-stats">
+                      <div class="scan-stats__item">
+                        <div class="scan-stats__value" style="color:var(--color-success)"
+                          x-text="scanned"></div>
+                        <div class="scan-stats__label">Escaneadas</div>
+                      </div>
+                      <div class="scan-stats__item">
+                        <div class="scan-stats__value" x-text="total - scanned"></div>
+                        <div class="scan-stats__label">Pendientes</div>
+                      </div>
+                      <div class="scan-stats__item">
+                        <div class="scan-stats__value" x-text="total"></div>
+                        <div class="scan-stats__label">Total</div>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Camera -->
+                  <div id="qr-reader" x-show="scanning"></div>
+
+                  <!-- Controls -->
+                  <div class="text-center mt-4">
+                    <template x-if="!scanning">
+                      <button class="btn btn--primary btn--lg" @click="startScanning"
+                        :disabled="!selectedEventId">
+                        Iniciar escáner
+                      </button>
+                    </template>
+                    <template x-if="scanning">
+                      <button class="btn btn--danger btn--lg" @click="stopScanning">
+                        Detener escáner
+                      </button>
+                    </template>
+                  </div>
+
+                  <!-- Processing indicator -->
+                  <template x-if="processing">
+                    <div class="text-center mt-4">
+                      <div class="spinner" style="margin:0 auto"></div>
+                      <div class="mt-2 text-muted">Validando...</div>
+                    </div>
+                  </template>
+
+                  <!-- Scan Result -->
+                  <template x-if="resultVisible && result">
+                    <div class="scan-result" :class="resultClass()">
+                      <div class="scan-result__icon" x-text="resultIcon()"></div>
+                      <div class="scan-result__message" x-text="result.message"></div>
+                      <template x-if="result.ticket">
+                        <div class="scan-result__detail">
+                          <span x-text="result.ticket.buyerName"></span> ·
+                          <span x-text="result.ticket.ticketType"></span>
+                        </div>
+                      </template>
+                      <template x-if="result.scannedAt">
+                        <div class="scan-result__detail">
+                          Escaneado: <span x-text="new Date(result.scannedAt).toLocaleString('es-ES')"></span>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+          </main>
+        </div>
+      </template>
+
+    </div>
+  </template>
+</div>
+
+<!-- ============================================================
+     NOTIFICATION TOAST
+     ============================================================ -->
+<div x-data x-show="$store.notify.visible"
+  x-transition:enter="transition ease-out duration-200"
+  x-transition:leave="transition ease-in duration-150"
+  class="toast"
+  :class="'toast--' + $store.notify.type"
+  x-text="$store.notify.message"
+  x-cloak>
+</div>
+
+</body>
+</html>
