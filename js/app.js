@@ -80,8 +80,7 @@ class QRScanner {
         { facingMode: 'environment' },
         {
           fps: 10,
-          qrbox: { width: 280, height: 280 },
-          aspectRatio: 1.0,
+          qrbox: { width: 250, height: 250 },
         },
         (decodedText) => {
           console.log('🔍 QR Code detected:', decodedText);
@@ -89,8 +88,8 @@ class QRScanner {
         },
         (errorMessage) => {
           // Log scan errors but don't throw (no QR found in frame)
-          if (errorMessage && !errorMessage.includes('No MultiFormat Readers')) {
-            console.log('📷 Scan error (normal):', errorMessage);
+          if (errorMessage && !errorMessage.includes('No MultiFormat Readers') && !errorMessage.includes('QR code parse error')) {
+            console.log('📷 Scan error:', errorMessage);
           }
         }
       );
