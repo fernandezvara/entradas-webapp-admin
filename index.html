@@ -244,6 +244,7 @@
                       </div>
                       <div class="flex gap-2">
                         <button class="btn btn--secondary" @click="navigateToOrders">Pedidos</button>
+                        <button class="btn btn--info" @click="navigateToTickets">Entradas</button>
                         <button class="btn btn--success" @click="navigateToScan">Escáner QR</button>
                         <button class="btn btn--ghost" @click="openEditEvent">Editar</button>
                       </div>
@@ -733,6 +734,163 @@
                               </tbody>
                             </table>
                           </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- ========== TICKETS LIST ========== -->
+            <template x-if="isRoute('tickets')">
+              <div x-data="ticketsPage">
+                <template x-if="loading">
+                  <div class="empty-state">
+                    <div class="spinner"></div>
+                    <div class="empty-state__text">Cargando entradas...</div>
+                  </div>
+                </template>
+
+                <template x-if="!loading && event">
+                  <div>
+                    <div class="breadcrumb">
+                      <a href="#/events">Eventos</a>
+                      <span class="breadcrumb__sep">›</span>
+                      <a :href="'#/events/' + eventId" x-text="event.name"></a>
+                      <span class="breadcrumb__sep">›</span>
+                      <span>Entradas</span>
+                    </div>
+
+                    <div class="page-header">
+                      <div>
+                        <h1 class="page-header__title">Entradas del evento</h1>
+                        <p class="page-header__sub">
+                          <span x-text="totalTickets"></span> entradas totales
+                        </p>
+                      </div>
+                      <div class="flex gap-2">
+                        <button class="btn btn--secondary" @click="navigateBack">← Volver</button>
+                      </div>
+                    </div>
+
+                    <!-- Filters and Search -->
+                    <div class="card mb-4">
+                      <div class="card__body">
+                        <div class="form-row">
+                          <div class="form-group" style="flex: 1;">
+                            <label>Buscar entrada</label>
+                            <input type="text" class="form-input" placeholder="Código, nombre, email..." 
+                                   x-model="searchQuery" @input="onSearchChange">
+                          </div>
+                          <div class="form-group" style="flex: 0 0 200px;">
+                            <label>Estado</label>
+                            <select class="form-select" x-model="statusFilter" @change="onFilterChange">
+                              <option value="all">Todas</option>
+                              <option value="scanned">Escaneadas</option>
+                              <option value="unscanned">No escaneadas</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="stats-grid mb-4">
+                      <div class="stat-card">
+                        <div class="stat-card__label">Total entradas</div>
+                        <div class="stat-card__value" x-text="totalTickets"></div>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-card__label">Escaneadas</div>
+                        <div class="stat-card__value stat-card__value--success" x-text="scannedCount"></div>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-card__label">No escaneadas</div>
+                        <div class="stat-card__value stat-card__value--warning" x-text="unscannedCount"></div>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-card__label">Mostrando</div>
+                        <div class="stat-card__value">
+                          <span x-text="filteredTickets.length"></span>
+                          <span style="font-size:0.85rem;color:var(--color-text-muted)">
+                            / <span x-text="totalTickets"></span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Tickets Table -->
+                    <template x-if="filteredTickets.length === 0">
+                      <div class="empty-state">
+                        <div class="empty-state__text">No se encontraron entradas con estos filtros.</div>
+                      </div>
+                    </template>
+
+                    <template x-if="filteredTickets.length > 0">
+                      <div class="card">
+                        <div class="card__body card__body--flush">
+                          <div class="table-wrap">
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Código</th>
+                                  <th>Comprador</th>
+                                  <th>Email</th>
+                                  <th>Tipo</th>
+                                  <th>Estado</th>
+                                  <th>Escaneado el</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <template x-for="ticket in paginatedTickets" :key="ticket.id">
+                                  <tr>
+                                    <td class="text-mono" x-text="ticket.ticket_token.split(':')[0].substring(0, 12) + '...'"></td>
+                                    <td x-text="ticket.buyer_name || '—'"></td>
+                                    <td x-text="ticket.buyer_email || '—'"></td>
+                                    <td x-text="ticket.ticket_type_name || '—'"></td>
+                                    <td>
+                                      <span class="badge" :class="ticket.scanned ? 'badge--success' : 'badge--muted'">
+                                        <span x-text="ticket.scanned ? 'Escaneado' : 'No escaneado'"></span>
+                                      </span>
+                                    </td>
+                                    <td x-text="ticket.scanned_at ? formatDate(ticket.scanned_at) : '—'"></td>
+                                  </tr>
+                                </template>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Pagination -->
+                      <div class="pagination-wrapper">
+                        <div class="pagination">
+                          <button class="pagination__btn" 
+                                  @click="goToPage(currentPage - 1)"
+                                  :disabled="currentPage === 1">
+                            ←
+                          </button>
+                          
+                          <template x-for="page in visiblePages" :key="page">
+                            <button class="pagination__btn" 
+                                    :class="page === currentPage ? 'pagination__btn--active' : ''"
+                                    @click="goToPage(page)"
+                                    x-text="page">
+                            </button>
+                          </template>
+                          
+                          <button class="pagination__btn" 
+                                  @click="goToPage(currentPage + 1)"
+                                  :disabled="currentPage === totalPages">
+                            →
+                          </button>
+                        </div>
+                        
+                        <div class="pagination__info">
+                          Mostrando <span x-text="(currentPage - 1) * pageSize + 1"></span>-
+                          <span x-text="Math.min(currentPage * pageSize, filteredTickets.length)"></span>
+                          de <span x-text="filteredTickets.length"></span>
                         </div>
                       </div>
                     </template>

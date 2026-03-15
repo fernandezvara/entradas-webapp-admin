@@ -929,6 +929,61 @@ tbody tr.clickable {
 }
 
 /* ============================================================
+   PAGINATION
+   ============================================================ */
+.pagination-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.pagination {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pagination__btn {
+  min-width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination__btn:hover:not(:disabled) {
+  background: var(--color-surface-alt);
+  border-color: var(--color-primary);
+}
+
+.pagination__btn--active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.pagination__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination__info {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+/* ============================================================
    DETAIL SECTIONS
    ============================================================ */
 .detail-grid {

@@ -243,6 +243,8 @@ document.addEventListener('alpine:init', () => {
         this.currentRoute = 'order-detail';
       } else if (hash.match(/#\/events\/([a-f0-9-]+)\/orders/)) {
         this.currentRoute = 'orders';
+      } else if (hash.match(/#\/events\/([a-f0-9-]+)\/tickets/)) {
+        this.currentRoute = 'tickets';
       } else if (hash.match(/#\/events\/([a-f0-9-]+)/)) {
         this.currentRoute = 'event-dashboard';
       } else if (hash.startsWith('#/events')) {
@@ -646,6 +648,10 @@ document.addEventListener('alpine:init', () => {
       window.location.hash = `#/events/${this.eventId}/orders`;
     },
 
+    navigateToTickets() {
+      window.location.hash = `#/events/${this.eventId}/tickets`;
+    },
+
     navigateToScan() {
       window.location.hash = `#/scan?event=${this.eventId}`;
     }
@@ -1026,6 +1032,185 @@ document.addEventListener('alpine:init', () => {
 
     destroy() {
       this.stopScanning();
+    }
+  }));
+
+  // Tickets Page Component
+  Alpine.data('ticketsPage', () => ({
+    event: null,
+    tickets: [],
+    loading: true,
+    eventId: null,
+    
+    // Search and filter
+    searchQuery: '',
+    statusFilter: 'all',
+    
+    // Pagination
+    currentPage: 1,
+    pageSize: 50,
+    
+    // Computed properties
+    get totalTickets() {
+      return this.tickets.length;
+    },
+    
+    get scannedCount() {
+      return this.tickets.filter(t => t.scanned).length;
+    },
+    
+    get unscannedCount() {
+      return this.tickets.filter(t => !t.scanned).length;
+    },
+    
+    get filteredTickets() {
+      let filtered = this.tickets;
+      
+      // Apply status filter
+      if (this.statusFilter === 'scanned') {
+        filtered = filtered.filter(t => t.scanned);
+      } else if (this.statusFilter === 'unscanned') {
+        filtered = filtered.filter(t => !t.scanned);
+      }
+      
+      // Apply search filter
+      if (this.searchQuery.trim()) {
+        const query = this.searchQuery.toLowerCase();
+        filtered = filtered.filter(ticket => 
+          (ticket.ticket_token && ticket.ticket_token.toLowerCase().includes(query)) ||
+          (ticket.buyer_name && ticket.buyer_name.toLowerCase().includes(query)) ||
+          (ticket.buyer_email && ticket.buyer_email.toLowerCase().includes(query)) ||
+          (ticket.ticket_type_name && ticket.ticket_type_name.toLowerCase().includes(query))
+        );
+      }
+      
+      return filtered;
+    },
+    
+    get totalPages() {
+      return Math.ceil(this.filteredTickets.length / this.pageSize);
+    },
+    
+    get paginatedTickets() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      const end = start + this.pageSize;
+      return this.filteredTickets.slice(start, end);
+    },
+    
+    get visiblePages() {
+      const pages = [];
+      const totalPages = this.totalPages;
+      const current = this.currentPage;
+      
+      if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        if (current <= 4) {
+          for (let i = 1; i <= 5; i++) {
+            pages.push(i);
+          }
+          pages.push('...');
+          pages.push(totalPages);
+        } else if (current >= totalPages - 3) {
+          pages.push(1);
+          pages.push('...');
+          for (let i = totalPages - 4; i <= totalPages; i++) {
+            pages.push(i);
+          }
+        } else {
+          pages.push(1);
+          pages.push('...');
+          for (let i = current - 1; i <= current + 1; i++) {
+            pages.push(i);
+          }
+          pages.push('...');
+          pages.push(totalPages);
+        }
+      }
+      
+      return pages;
+    },
+    
+    async init() {
+      // Parse event ID from URL
+      const match = window.location.hash.match(/#\/events\/([a-f0-9-]+)\/tickets/);
+      if (match) {
+        this.eventId = match[1];
+        await this.loadData();
+      } else {
+        Alpine.store('notify').error('ID de evento no encontrado');
+        this.navigateBack();
+      }
+    },
+    
+    async loadData() {
+      this.loading = true;
+      try {
+        // Load event details
+        const { data: event } = await db
+          .from('events')
+          .select('id, name, event_date, venue')
+          .eq('id', this.eventId)
+          .single();
+        
+        if (!event) throw new Error('Evento no encontrado');
+        this.event = event;
+        
+        // Load tickets with order and ticket type info
+        const { data: tickets } = await db
+          .from('tickets')
+          .select(`
+            *,
+            orders!inner(
+              buyer_name,
+              buyer_email
+            ),
+            order_items!inner(
+              ticket_types!inner(
+                name
+              )
+            )
+          `)
+          .eq('event_id', this.eventId)
+          .order('created_at', { ascending: false });
+        
+        this.tickets = tickets || [];
+        console.log(`🎫 Loaded ${this.tickets.length} tickets for event ${this.eventId}`);
+        
+      } catch (err) {
+        console.error('❌ Error loading tickets:', err);
+        Alpine.store('notify').error('Error al cargar entradas: ' + err.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    onSearchChange() {
+      this.currentPage = 1; // Reset to first page when searching
+    },
+    
+    onFilterChange() {
+      this.currentPage = 1; // Reset to first page when filtering
+    },
+    
+    goToPage(page) {
+      if (page >= 1 && page <= this.totalPages && page !== '...') {
+        this.currentPage = page;
+      }
+    },
+    
+    navigateBack() {
+      window.location.hash = `#/events/${this.eventId}`;
+    },
+    
+    formatDate(dateStr) {
+      if (!dateStr) return '—';
+      return new Date(dateStr).toLocaleDateString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
     }
   }));
 
