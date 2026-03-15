@@ -75,26 +75,36 @@ class QRScanner {
         setTimeout(() => reject(new Error('Tiempo de espera agotado al iniciar la cámara')), this.timeoutMs);
       });
 
-      // Start scanner with timeout
+      // Use the proven configuration
       const startPromise = this.scanner.start(
         { facingMode: 'environment' },
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
+          qrbox: (vw, vh) => {
+            const size = Math.min(vw, vh) * 0.7;
+            return { width: size, height: size };
+          },
+          aspectRatio: 1,
         },
         (decodedText) => {
           console.log('🔍 QR Code detected:', decodedText);
           onScan(decodedText);
         },
         (errorMessage) => {
-          // Log scan errors but don't throw (no QR found in frame)
-          if (errorMessage && !errorMessage.includes('No MultiFormat Readers') && !errorMessage.includes('QR code parse error')) {
-            console.log('📷 Scan error:', errorMessage);
-          }
+          // Ignore scan errors (no QR found in frame)
+          // This is normal behavior, so we don't log it
         }
       );
 
       await Promise.race([startPromise, timeoutPromise]);
+      
+      // Hide dashboard clutter injected by the library
+      setTimeout(() => {
+        const dash = document.getElementById(`${this.elementId}__dashboard`);
+        if (dash) dash.style.display = 'none';
+        const hdr = document.getElementById(`${this.elementId}__header_message`);
+        if (hdr) hdr.style.display = 'none';
+      }, 100);
       
       this.isRunning = true;
       this.isInitializing = false;
@@ -109,7 +119,8 @@ class QRScanner {
             videoWidth: videoElement.videoWidth,
             videoHeight: videoElement.videoHeight,
             readyState: videoElement.readyState,
-            playing: !videoElement.paused && !videoElement.ended
+            playing: !videoElement.paused && !videoElement.ended,
+            visible: videoElement.offsetWidth > 0 && videoElement.offsetHeight > 0
           });
         } else {
           console.warn('⚠️ No video element found in scanner container');

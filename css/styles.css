@@ -737,9 +737,16 @@ tbody tr.clickable {
 #qr-reader video,
 #qr-reader canvas {
   border-radius: var(--radius);
-  width: 100%;
-  height: auto;
-  display: block;
+  width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  object-fit: cover !important;
+}
+
+/* Debug: Force video to be visible */
+#qr-reader video {
+  min-height: 300px !important;
+  background: #333 !important;
 }
 
 .scan-result {
