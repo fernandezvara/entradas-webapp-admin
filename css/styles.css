@@ -729,10 +729,14 @@ tbody tr.clickable {
   border-radius: var(--radius);
   overflow: hidden;
   margin-bottom: 16px;
+  min-height: 300px;
+  background: #000;
 }
 
 #qr-reader video {
   border-radius: var(--radius);
+  width: 100%;
+  height: auto;
 }
 
 .scan-result {

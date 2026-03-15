@@ -102,6 +102,21 @@ class QRScanner {
       const initTime = Date.now() - this.startTime;
       console.log(`✅ Camera started successfully in ${initTime}ms`);
       
+      // Check if video element is actually showing
+      setTimeout(() => {
+        const videoElement = document.querySelector(`#${this.elementId} video`);
+        if (videoElement) {
+          console.log('📹 Video element found:', {
+            videoWidth: videoElement.videoWidth,
+            videoHeight: videoElement.videoHeight,
+            readyState: videoElement.readyState,
+            playing: !videoElement.paused && !videoElement.ended
+          });
+        } else {
+          console.warn('⚠️ No video element found in scanner container');
+        }
+      }, 1000);
+      
       if (onStatusChange) onStatusChange('active', 'Cámara activa - Escanea un código QR');
 
     } catch (err) {
