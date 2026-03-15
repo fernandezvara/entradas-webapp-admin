@@ -42,16 +42,41 @@ class QRScanner {
     this.elementId = elementId;
     this.scanner = null;
     this.isRunning = false;
+    this.isInitializing = false;
+    this.lastError = null;
+    this.startTime = null;
+    this.timeoutMs = 10000; // 10 second timeout
   }
 
-  async start(onScan) {
-    if (this.isRunning) return;
+  async start(onScan, onStatusChange) {
+    if (this.isRunning || this.isInitializing) return;
 
-    this.scanner = new Html5Qrcode(this.elementId);
-    this.isRunning = true;
+    this.isInitializing = true;
+    this.lastError = null;
+    this.startTime = Date.now();
+    
+    if (onStatusChange) onStatusChange('initializing', 'Iniciando cámara...');
 
     try {
-      await this.scanner.start(
+      // Check if camera is available
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(device => device.kind === 'videoinput');
+      if (cameras.length === 0) {
+        throw new Error('No se encontraron cámaras en este dispositivo');
+      }
+
+      console.log('📷 Found cameras:', cameras.length);
+      if (onStatusChange) onStatusChange('initializing', `Iniciando cámara (${cameras.length} encontradas)...`);
+
+      this.scanner = new Html5Qrcode(this.elementId);
+      
+      // Set up timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Tiempo de espera agotado al iniciar la cámara')), this.timeoutMs);
+      });
+
+      // Start scanner with timeout
+      const startPromise = this.scanner.start(
         { facingMode: 'environment' },
         {
           fps: 10,
@@ -59,30 +84,86 @@ class QRScanner {
           aspectRatio: 1.0,
         },
         (decodedText) => {
+          console.log('🔍 QR Code detected:', decodedText);
           onScan(decodedText);
         },
-        () => {} // ignore errors (no QR found frames)
+        (errorMessage) => {
+          // Log scan errors but don't throw (no QR found in frame)
+          if (errorMessage && !errorMessage.includes('No MultiFormat Readers')) {
+            console.log('📷 Scan error (normal):', errorMessage);
+          }
+        }
       );
+
+      await Promise.race([startPromise, timeoutPromise]);
+      
+      this.isRunning = true;
+      this.isInitializing = false;
+      const initTime = Date.now() - this.startTime;
+      console.log(`✅ Camera started successfully in ${initTime}ms`);
+      
+      if (onStatusChange) onStatusChange('active', 'Cámara activa - Escanea un código QR');
+
     } catch (err) {
+      this.isInitializing = false;
       this.isRunning = false;
+      this.lastError = err;
+      const initTime = Date.now() - this.startTime;
+      console.error(`❌ Camera failed to start after ${initTime}ms:`, err);
+      
+      let userMessage = 'Error al iniciar la cámara';
+      if (err.message.includes('NotAllowedError')) {
+        userMessage = 'Acceso a la cámara denegado. Por favor, permite el acceso a la cámara en tu navegador.';
+      } else if (err.message.includes('NotFoundError')) {
+        userMessage = 'No se encontraron cámaras. Conecta una cámara y recarga la página.';
+      } else if (err.message.includes('Tiempo de espera')) {
+        userMessage = 'La cámara tardó demasiado en iniciarse. Intenta recargar la página.';
+      } else {
+        userMessage = `Error: ${err.message}`;
+      }
+      
+      if (onStatusChange) onStatusChange('error', userMessage);
       throw err;
     }
   }
 
   async stop() {
     if (!this.isRunning || !this.scanner) return;
+    console.log('🛑 Stopping scanner...');
     try {
       await this.scanner.stop();
-    } catch (_) {}
+      console.log('✅ Scanner stopped successfully');
+    } catch (err) {
+      console.error('❌ Error stopping scanner:', err);
+    }
     this.isRunning = false;
   }
 
   async dispose() {
+    console.log('🗑️ Disposing scanner...');
     await this.stop();
     if (this.scanner) {
-      this.scanner.clear();
+      try {
+        this.scanner.clear();
+      } catch (err) {
+        console.error('❌ Error clearing scanner:', err);
+      }
       this.scanner = null;
     }
+    this.lastError = null;
+    this.startTime = null;
+  }
+
+  // Get current status for debugging
+  getStatus() {
+    return {
+      isRunning: this.isRunning,
+      isInitializing: this.isInitializing,
+      lastError: this.lastError?.message || null,
+      elementId: this.elementId,
+      startTime: this.startTime,
+      uptime: this.startTime ? Date.now() - this.startTime : 0
+    };
   }
 }
 
@@ -717,6 +798,11 @@ document.addEventListener('alpine:init', () => {
     scanning: false,
     loading: true,
 
+    // Enhanced scanner state
+    scannerStatus: null,        // 'initializing', 'active', 'error', null
+    scannerMessage: '',        // User-friendly status message
+    scannerDebug: null,        // Debug information
+
     // Scan result state
     result: null,       // { status, message, ticket }
     resultVisible: false,
@@ -772,29 +858,53 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
+    // Handle scanner status changes
+    onScannerStatusChange(status, message) {
+      this.scannerStatus = status;
+      this.scannerMessage = message;
+      
+      if (this.scanner) {
+        this.scannerDebug = this.scanner.getStatus();
+        console.log('📷 Scanner status:', status, message, this.scannerDebug);
+      }
+    },
+
     async startScanning() {
       if (!this.selectedEventId) {
         Alpine.store('notify').error('Selecciona un evento primero');
         return;
       }
+      
       this.result = null;
       this.resultVisible = false;
+      this.scannerStatus = null;
+      this.scannerMessage = '';
+      this.scannerDebug = null;
 
       this.scanner = new QRScanner('qr-reader');
       try {
-        await this.scanner.start((text) => this.onScan(text));
+        await this.scanner.start(
+          (text) => this.onScan(text),
+          (status, message) => this.onScannerStatusChange(status, message)
+        );
         this.scanning = true;
       } catch (err) {
-        Alpine.store('notify').error('No se pudo acceder a la cámara: ' + err.message);
+        console.error('❌ Scanner failed to start:', err);
+        // Error message is already handled by the scanner's onStatusChange
+        this.scanning = false;
       }
     },
 
     async stopScanning() {
       if (this.scanner) {
+        console.log('🛑 Stopping scanner...');
         await this.scanner.dispose();
         this.scanner = null;
       }
       this.scanning = false;
+      this.scannerStatus = null;
+      this.scannerMessage = '';
+      this.scannerDebug = null;
     },
 
     async onScan(ticketToken) {
@@ -802,23 +912,40 @@ document.addEventListener('alpine:init', () => {
       this.processing = true;
       this.resultVisible = false;
 
+      // Add haptic feedback on mobile
+      if ('vibrate' in navigator) {
+        navigator.vibrate(200);
+      }
+
       try {
+        console.log('🎫 Validating ticket:', ticketToken);
         const data = await callEdgeFunction('validate-ticket', { ticketToken });
         this.result = data;
         this.resultVisible = true;
+
+        // Play success sound (optional - you can add audio element)
+        this.playScanSound(data.status);
 
         if (data.status === 'ok') {
           await this.loadScanStats();
         }
       } catch (err) {
+        console.error('❌ Ticket validation failed:', err);
         this.result = { status: 'error', message: err.message };
         this.resultVisible = true;
+        this.playScanSound('error');
       } finally {
         this.processing = false;
         // Cooldown to prevent rapid duplicate reads
         this.cooldown = true;
         setTimeout(() => { this.cooldown = false; }, 2000);
       }
+    },
+
+    playScanSound(status) {
+      // You can add audio feedback here if desired
+      // For now, just log it
+      console.log('🔊 Scan sound:', status);
     },
 
     resultClass() {
@@ -833,6 +960,16 @@ document.addEventListener('alpine:init', () => {
     resultIcon() {
       if (!this.result) return '';
       return this.result.status === 'ok' ? '✓' : '✕';
+    },
+
+    // Get scanner status class for styling
+    scannerStatusClass() {
+      switch (this.scannerStatus) {
+        case 'initializing': return 'scanner-status--initializing';
+        case 'active': return 'scanner-status--active';
+        case 'error': return 'scanner-status--error';
+        default: return '';
+      }
     },
 
     destroy() {

@@ -783,7 +783,35 @@
                   </template>
 
                   <!-- Camera -->
-                  <div id="qr-reader" x-show="scanning"></div>
+                  <div class="scanner-wrapper">
+                    <div id="qr-reader" x-show="scanning" :class="scannerStatusClass()"></div>
+                    
+                    <!-- Scanner Status Overlay -->
+                    <template x-if="scannerStatus">
+                      <div class="scanner-status-overlay" :class="scannerStatusClass()">
+                        <template x-if="scannerStatus === 'initializing'">
+                          <div class="scanner-status__content">
+                            <div class="spinner"></div>
+                            <div x-text="scannerMessage"></div>
+                          </div>
+                        </template>
+                        <template x-if="scannerStatus === 'active'">
+                          <div class="scanner-status__content scanner-status__content--active">
+                            <div class="scanner-indicator">
+                              <div class="scanner-indicator__dot"></div>
+                              <div class="scanner-indicator__text">Escaneando...</div>
+                            </div>
+                          </div>
+                        </template>
+                        <template x-if="scannerStatus === 'error'">
+                          <div class="scanner-status__content scanner-status__content--error">
+                            <div class="scanner-error-icon">⚠️</div>
+                            <div x-text="scannerMessage"></div>
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
 
                   <!-- Controls -->
                   <div class="text-center mt-4">
@@ -805,6 +833,17 @@
                     <div class="text-center mt-4">
                       <div class="spinner" style="margin:0 auto"></div>
                       <div class="mt-2 text-muted">Validando...</div>
+                    </div>
+                  </template>
+
+                  <!-- Scanner Debug Info (for development) -->
+                  <template x-if="scannerDebug && window.location.hostname === 'localhost'">
+                    <div class="scanner-debug" style="margin-top: 16px; padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 0.85rem; font-family: monospace;">
+                      <div><strong>Scanner Debug:</strong></div>
+                      <div>Running: <span x-text="scannerDebug.isRunning"></span></div>
+                      <div>Initializing: <span x-text="scannerDebug.isInitializing"></span></div>
+                      <div>Uptime: <span x-text="scannerDebug.uptime"></span>ms</div>
+                      <div>Error: <span x-text="scannerDebug.lastError || 'None'"></span></div>
                     </div>
                   </template>
 

@@ -87,6 +87,21 @@ img { max-width: 100%; display: block; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ============================================================
    LAYOUT
    ============================================================ */
@@ -791,6 +806,92 @@ tbody tr.clickable {
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* ============================================================
+  ENHANCED SCANNER STYLES
+  ============================================================ */
+.scanner-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.scanner-status-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: var(--radius);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.scanner-status__content {
+  text-align: center;
+  color: white;
+  font-weight: 500;
+}
+
+.scanner-status__content--active {
+  background: rgba(26, 127, 75, 0.9);
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  margin: 16px;
+}
+
+.scanner-status__content--error {
+  background: rgba(197, 48, 48, 0.9);
+  padding: 16px;
+  border-radius: var(--radius);
+  margin: 16px;
+  max-width: 300px;
+}
+
+.scanner-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scanner-indicator__dot {
+  width: 8px;
+  height: 8px;
+  background: #4ade80;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.scanner-indicator__text {
+  font-size: 0.9rem;
+}
+
+.scanner-error-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+/* Scanner status classes for video element */
+#qr-reader.scanner-status--initializing {
+  opacity: 0.5;
+}
+
+#qr-reader.scanner-status--active {
+  box-shadow: 0 0 0 3px var(--color-success);
+}
+
+#qr-reader.scanner-status--error {
+  box-shadow: 0 0 0 3px var(--color-danger);
+}
+
+/* Debug panel */
+.scanner-debug {
+  animation: slideDown 0.2s ease;
 }
 
 /* ============================================================
