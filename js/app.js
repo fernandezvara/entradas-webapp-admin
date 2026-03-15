@@ -372,7 +372,8 @@ document.addEventListener('alpine:init', () => {
       }
 
       this.typeBreakdown = Object.values(breakdown);
-      this.stats.totalSold = this.typeBreakdown.reduce((s, b) => s + b.quantity, 0);
+      // totalSold should be number of orders (invoices), not individual tickets
+      this.stats.totalSold = orders ? orders.length : 0;
       this.stats.donations = this.typeBreakdown.filter(b => b.isDonation).reduce((s, b) => s + b.revenue, 0);
     },
 
