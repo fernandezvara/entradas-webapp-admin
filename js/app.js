@@ -104,6 +104,33 @@ class QRScanner {
         if (dash) dash.style.display = 'none';
         const hdr = document.getElementById(`${this.elementId}__header_message`);
         if (hdr) hdr.style.display = 'none';
+        
+        // Hide any additional library elements
+        const csr = document.getElementById(`${this.elementId}__dashboard_section_csr`);
+        if (csr) csr.style.display = 'none';
+        const fbp = document.getElementById(`${this.elementId}__dashboard_section_fbp`);
+        if (fbp) fbp.style.display = 'none';
+        
+        // Hide duplicate videos and canvases
+        const container = document.getElementById(this.elementId);
+        if (container) {
+          const videos = container.querySelectorAll('video');
+          const canvases = container.querySelectorAll('canvas');
+          
+          // Keep only the first video, hide others
+          videos.forEach((video, index) => {
+            if (index > 0) {
+              video.style.display = 'none';
+            }
+          });
+          
+          // Hide all canvases (they're for processing, not display)
+          canvases.forEach(canvas => {
+            canvas.style.display = 'none';
+          });
+        }
+        
+        console.log('🧹 Cleaned up library UI elements');
       }, 100);
       
       this.isRunning = true;

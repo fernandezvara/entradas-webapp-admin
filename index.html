@@ -782,6 +782,25 @@
                     </div>
                   </template>
 
+                  <!-- Scan Result -->
+                  <template x-if="resultVisible && result">
+                    <div class="scan-result" :class="resultClass()">
+                      <div class="scan-result__icon" x-text="resultIcon()"></div>
+                      <div class="scan-result__message" x-text="result.message"></div>
+                      <template x-if="result.ticket">
+                        <div class="scan-result__detail">
+                          <span x-text="result.ticket.buyerName"></span> ·
+                          <span x-text="result.ticket.ticketType"></span>
+                        </div>
+                      </template>
+                      <template x-if="result.scannedAt">
+                        <div class="scan-result__detail">
+                          Escaneado: <span x-text="new Date(result.scannedAt).toLocaleString('es-ES')"></span>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+
                   <!-- Camera -->
                   <div class="scanner-wrapper">
                     <div id="qr-reader" x-show="scanning" :class="scannerStatusClass()"></div>
@@ -844,25 +863,6 @@
                       <div>Initializing: <span x-text="scannerDebug.isInitializing"></span></div>
                       <div>Uptime: <span x-text="scannerDebug.uptime"></span>ms</div>
                       <div>Error: <span x-text="scannerDebug.lastError || 'None'"></span></div>
-                    </div>
-                  </template>
-
-                  <!-- Scan Result -->
-                  <template x-if="resultVisible && result">
-                    <div class="scan-result" :class="resultClass()">
-                      <div class="scan-result__icon" x-text="resultIcon()"></div>
-                      <div class="scan-result__message" x-text="result.message"></div>
-                      <template x-if="result.ticket">
-                        <div class="scan-result__detail">
-                          <span x-text="result.ticket.buyerName"></span> ·
-                          <span x-text="result.ticket.ticketType"></span>
-                        </div>
-                      </template>
-                      <template x-if="result.scannedAt">
-                        <div class="scan-result__detail">
-                          Escaneado: <span x-text="new Date(result.scannedAt).toLocaleString('es-ES')"></span>
-                        </div>
-                      </template>
                     </div>
                   </template>
                 </div>
