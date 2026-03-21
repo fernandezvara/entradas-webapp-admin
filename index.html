@@ -188,7 +188,7 @@
                 <template x-if="!loading && events.length > 0">
                   <div class="event-grid">
                     <template x-for="event in events" :key="event.id">
-                      <div class="event-card" @click="navigateToEvent(event.id)">
+                      <div class="event-card" @click="navigateToEvent(event.slug)">
                         <div class="event-card__name" x-text="event.name"></div>
                         <div class="event-card__venue" x-text="event.venue"></div>
                         <div class="event-card__date" x-text="formatDate(event.event_date)"></div>
@@ -523,7 +523,7 @@
                     <div class="breadcrumb">
                       <a href="#/events">Eventos</a>
                       <span class="breadcrumb__sep">›</span>
-                      <a :href="'#/events/' + eventId" x-text="event?.name || 'Evento'"></a>
+                      <a :href="'#/events/' + eventSlug" x-text="event?.name || 'Evento'"></a>
                       <span class="breadcrumb__sep">›</span>
                       <span>Pedidos</span>
                     </div>
@@ -615,9 +615,9 @@
                     <div class="breadcrumb">
                       <a href="#/events">Eventos</a>
                       <span class="breadcrumb__sep">›</span>
-                      <a :href="'#/events/' + eventId" x-text="event?.name || 'Evento'"></a>
+                      <a :href="'#/events/' + eventSlug" x-text="event?.name || 'Evento'"></a>
                       <span class="breadcrumb__sep">›</span>
-                      <a :href="'#/events/' + eventId + '/orders'">Pedidos</a>
+                      <a :href="'#/events/' + eventSlug + '/orders'">Pedidos</a>
                       <span class="breadcrumb__sep">›</span>
                       <span>Detalle</span>
                     </div>
@@ -757,7 +757,7 @@
                     <div class="breadcrumb">
                       <a href="#/events">Eventos</a>
                       <span class="breadcrumb__sep">›</span>
-                      <a :href="'#/events/' + eventId" x-text="event.name"></a>
+                      <a :href="'#/events/' + eventSlug" x-text="event.name"></a>
                       <span class="breadcrumb__sep">›</span>
                       <span>Entradas</span>
                     </div>
