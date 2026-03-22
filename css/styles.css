@@ -275,6 +275,14 @@ img { max-width: 100%; display: block; }
   margin-bottom: 16px;
 }
 
+.form-help {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+  font-style: italic;
+}
+
 .form-check {
   display: flex;
   align-items: center;

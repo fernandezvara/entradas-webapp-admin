@@ -365,12 +365,45 @@ document.addEventListener('alpine:init', () => {
         name: '', description: '', venue: '',
         event_date: '', event_time: '20:00',
         duration_minutes: 120, total_seats: 100, image_url: '',
+        slug: '', // Add slug field
       };
     },
 
+    // Slug generation function
+    stringToSlug(str) {
+      str = str.replace(/^\s+|\s+$/g, ''); // trim
+      str = str.toLowerCase();
+    
+      // remove accents, swap ñ for n, etc
+      var from = "àáäâèéëêìíïîòóöôùúüûñç·/_,:;";
+      var to   = "aaaaeeeeiiiioooouuuunc------";
+      for (var i=0, l=from.length ; i<l ; i++) {
+          str = str.replace(new RegExp(from.charAt(i), 'g'), to.charAt(i));
+      }
+
+      str = str.replace(/[^a-z0-9 -]/g, '') // remove invalid chars
+          .replace(/\s+/g, '-') // collapse whitespace and replace by -
+          .replace(/-+/g, '-'); // collapse dashes
+
+      return str;
+    },
+
+    // Reactive methods for slug generation
+    onTitleChangeCreate() {
+      if (!this.form.slug || this.form.slug === this.stringToSlug(this.form.name)) {
+        this.form.slug = this.stringToSlug(this.form.name);
+      }
+    },
+
+    onTitleChangeEdit() {
+      if (!this.editForm.slug || this.editForm.slug === this.stringToSlug(this.editForm.name)) {
+        this.editForm.slug = this.stringToSlug(this.editForm.name);
+      }
+    },
+
     async createEvent() {
-      if (!this.form.name || !this.form.venue || !this.form.event_date) {
-        Alpine.store('notify').error('Nombre, lugar y fecha son obligatorios');
+      if (!this.form.name || !this.form.venue || !this.form.event_date || !this.form.slug) {
+        Alpine.store('notify').error('Nombre, lugar, fecha y slug son obligatorios');
         return;
       }
 
@@ -382,6 +415,7 @@ document.addEventListener('alpine:init', () => {
 
         const { error } = await db.from('events').insert({
           name: this.form.name,
+          slug: this.form.slug,
           description: this.form.description,
           venue: this.form.venue,
           event_date: eventDate.toISOString(),
@@ -533,6 +567,7 @@ document.addEventListener('alpine:init', () => {
     openEditEvent() {
       this.editForm = {
         name: this.event.name,
+        slug: this.event.slug,
         description: this.event.description || '',
         venue: this.event.venue,
         event_date: this.formatDateInput(this.event.event_date),
@@ -546,6 +581,11 @@ document.addEventListener('alpine:init', () => {
     },
 
     async saveEvent() {
+      if (!this.editForm.name || !this.editForm.slug) {
+        Alpine.store('notify').error('Nombre y slug son obligatorios');
+        return;
+      }
+
       this.savingEvent = true;
       try {
         const seatDiff = parseInt(this.editForm.total_seats) - this.event.total_seats;
@@ -553,6 +593,7 @@ document.addEventListener('alpine:init', () => {
 
         const { error } = await db.from('events').update({
           name: this.editForm.name,
+          slug: this.editForm.slug,
           description: this.editForm.description,
           venue: this.editForm.venue,
           event_date: new Date(this.editForm.event_date).toISOString(),

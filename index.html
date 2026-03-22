@@ -127,7 +127,13 @@
                         <div class="form-group">
                           <label>Nombre del evento</label>
                           <input type="text" class="form-input" x-model="form.name"
-                            placeholder="Gala Solidaria 2026" required>
+                            placeholder="Gala Solidaria 2026" @input="onTitleChangeCreate" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Slug (URL amigable)</label>
+                          <input type="text" class="form-input" x-model="form.slug" 
+                            placeholder="gala-solidaria-2026" required>
+                          <small class="form-help">Se genera automáticamente desde el título, pero puedes editarlo</small>
                         </div>
                         <div class="form-group">
                           <label>Descripción</label>
@@ -380,7 +386,12 @@
                           <div class="modal__body">
                             <div class="form-group">
                               <label>Nombre</label>
-                              <input type="text" class="form-input" x-model="editForm.name">
+                              <input type="text" class="form-input" x-model="editForm.name" @input="onTitleChangeEdit">
+                            </div>
+                            <div class="form-group">
+                              <label>Slug (URL amigable)</label>
+                              <input type="text" class="form-input" x-model="editForm.slug" required>
+                              <small class="form-help">Se genera automáticamente desde el título, pero puedes editarlo</small>
                             </div>
                             <div class="form-group">
                               <label>Descripción</label>
