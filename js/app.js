@@ -239,13 +239,13 @@ document.addEventListener('alpine:init', () => {
       const auth = Alpine.store('auth');
 
       // Parse route
-      if (hash.match(/#\/events\/([a-f0-9-]+)\/orders\/([a-f0-9-]+)/)) {
+      if (hash.match(/#\/events\/([a-zA-Z0-9-]+)\/orders\/([a-f0-9-]+)/)) {
         this.currentRoute = 'order-detail';
-      } else if (hash.match(/#\/events\/([a-f0-9-]+)\/orders/)) {
+      } else if (hash.match(/#\/events\/([a-zA-Z0-9-]+)\/orders/)) {
         this.currentRoute = 'orders';
-      } else if (hash.match(/#\/events\/([a-f0-9-]+)\/tickets/)) {
+      } else if (hash.match(/#\/events\/([a-zA-Z0-9-]+)\/tickets/)) {
         this.currentRoute = 'tickets';
-      } else if (hash.match(/#\/events\/([a-f0-9-]+)/)) {
+      } else if (hash.match(/#\/events\/([a-zA-Z0-9-]+)/)) {
         this.currentRoute = 'event-dashboard';
       } else if (hash.startsWith('#/events')) {
         this.currentRoute = 'events';
