@@ -452,6 +452,8 @@ document.addEventListener('alpine:init', () => {
     loading: true,
     eventId: null,
     eventSlug: null,
+    ticketTypes: [],     
+    showAddType: false,  
 
     // Edit event modal
     showEditEvent: false,
