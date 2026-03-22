@@ -364,6 +364,8 @@
                               </div>
                               <div class="type-item__actions">
                                 <button class="btn btn--ghost btn--sm"
+                                  @click="openEditType(tt)">Editar</button>
+                                <button class="btn btn--ghost btn--sm"
                                   @click="toggleTicketType(tt.id, tt.enabled)"
                                   x-text="tt.enabled ? 'Desactivar' : 'Activar'"></button>
                                 <button class="btn btn--ghost btn--sm" style="color:var(--color-danger)"
@@ -444,11 +446,11 @@
 
                     <!-- Add Ticket Type Modal -->
                     <template x-if="showAddType">
-                      <div class="modal-backdrop" @click.self="showAddType = false">
+                      <div class="modal-backdrop" @click.self="closeTypeModal">
                         <div class="modal">
                           <div class="modal__header">
-                            <span class="modal__title">Añadir tipo de entrada</span>
-                            <button class="btn btn--ghost btn--sm" @click="showAddType = false">✕</button>
+                            <span class="modal__title" x-text="editMode ? 'Editar tipo de entrada' : 'Añadir tipo de entrada'"></span>
+                            <button class="btn btn--ghost btn--sm" @click="closeTypeModal">✕</button>
                           </div>
                           <div class="modal__body">
                             <div class="form-group">
@@ -505,9 +507,9 @@
                             </div>
                           </div>
                           <div class="modal__footer">
-                            <button class="btn btn--secondary" @click="showAddType = false">Cancelar</button>
+                            <button class="btn btn--secondary" @click="closeTypeModal">Cancelar</button>
                             <button class="btn btn--primary" @click="saveTicketType" :disabled="savingType">
-                              <span x-text="savingType ? 'Guardando...' : 'Añadir'"></span>
+                              <span x-text="savingType ? 'Guardando...' : (editMode ? 'Guardar cambios' : 'Añadir')"></span>
                             </button>
                           </div>
                         </div>

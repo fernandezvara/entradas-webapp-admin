@@ -466,6 +466,13 @@ document.addEventListener('alpine:init', () => {
       takes_seat: true, enabled: true, legal_text: '', fiscal_text: '',
     },
     savingType: false,
+    editMode: false, // Track if modal is in edit mode
+    editingTypeId: null, // Store ID of ticket type being edited
+
+    // Computed property to check if currently editing
+    get isEditing() {
+      return this.editMode && this.editingTypeId !== null;
+    },
 
     async init() {
       this.eventId = this.getEventIdFromHash();
@@ -626,7 +633,37 @@ document.addEventListener('alpine:init', () => {
         name: '', type: 'general', price: '', quantity: 1,
         takes_seat: true, enabled: true, legal_text: '', fiscal_text: '',
       };
+      this.editMode = false;
+      this.editingTypeId = null;
       this.showAddType = true;
+    },
+
+    // --- Edit Ticket Type ---
+    openEditType(ticketType) {
+      this.typeForm = {
+        name: ticketType.name,
+        type: ticketType.type,
+        price: (ticketType.price_cents / 100).toFixed(2),
+        quantity: ticketType.quantity,
+        takes_seat: ticketType.takes_seat,
+        enabled: ticketType.enabled,
+        legal_text: ticketType.legal_text || '',
+        fiscal_text: ticketType.fiscal_text || '',
+      };
+      this.editMode = true;
+      this.editingTypeId = ticketType.id;
+      this.showAddType = true;
+    },
+
+    // Close modal and reset state
+    closeTypeModal() {
+      this.showAddType = false;
+      this.editMode = false;
+      this.editingTypeId = null;
+      this.typeForm = {
+        name: '', type: 'general', price: '', quantity: 1,
+        takes_seat: true, enabled: true, legal_text: '', fiscal_text: '',
+      };
     },
 
     onTypeChange() {
@@ -645,8 +682,7 @@ document.addEventListener('alpine:init', () => {
       this.savingType = true;
       try {
         const priceCents = Math.round(parseFloat(this.typeForm.price) * 100);
-        const { error } = await db.from('ticket_types').insert({
-          event_id: this.eventId,
+        const ticketData = {
           name: this.typeForm.name,
           type: this.typeForm.type,
           price_cents: priceCents,
@@ -655,11 +691,33 @@ document.addEventListener('alpine:init', () => {
           enabled: this.typeForm.enabled,
           legal_text: this.typeForm.legal_text || null,
           fiscal_text: this.typeForm.fiscal_text || null,
-          sort_order: this.ticketTypes.length,
-        });
+        };
+
+        let error;
+        if (this.editMode && this.editingTypeId) {
+          // UPDATE existing ticket type
+          const { error: updateError } = await db.from('ticket_types')
+            .update(ticketData)
+            .eq('id', this.editingTypeId);
+          error = updateError;
+          if (!error) {
+            Alpine.store('notify').success('Tipo de entrada actualizado');
+          }
+        } else {
+          // INSERT new ticket type
+          const { error: insertError } = await db.from('ticket_types').insert({
+            ...ticketData,
+            event_id: this.eventId,
+            sort_order: this.ticketTypes.length,
+          });
+          error = insertError;
+          if (!error) {
+            Alpine.store('notify').success('Tipo de entrada añadido');
+          }
+        }
+
         if (error) throw error;
-        Alpine.store('notify').success('Tipo de entrada añadido');
-        this.showAddType = false;
+        this.closeTypeModal();
         await this.loadTicketTypes();
       } catch (err) {
         Alpine.store('notify').error('Error: ' + err.message);
